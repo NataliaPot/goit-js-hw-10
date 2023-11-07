@@ -17,15 +17,37 @@ const displaySelect = new SlimSelect({
   select: breedSelectEl,
 });
 
-fetchBreeds()
-  .then(breeds => {
-    const displayData = breeds.map(({ id, name }) => ({
-      text: name,
-      value: id,
-    }));
-    displaySelect.setData(displayData);
-  })
-  .catch(anErrorOccurred);
+function wrapperFetch() {
+  loaderEl.classList.replace('visually-hidden', 'loader');
+
+  fetchBreeds()
+    .then(breeds => {
+      const displayData = breeds.map(({ id, name }) => ({
+        text: name,
+        value: id,
+      }));
+      displaySelect.setData(displayData);
+    })
+    .catch(anErrorOccurred)
+    .finally(() => loaderEl.classList.add('visually-hidden'));
+}
+
+wrapperFetch();
+
+function createCatMarkup(breeds) {
+  return breeds
+    .map(
+      ({ url, breeds: [{ description, temperament, name, origin }] }) =>
+        `<img src="${url}" class="cat-img" alt="cat" width=500/>
+        <div class="info-cat">
+          <h1>${name}</h1>
+          <p>${description}</p>
+          <p><span class="temperament">Temperament: </span>${temperament}</p>
+          <p><span class="country">Country: </span>${origin}</p>
+        </div>`
+    )
+    .join('');
+}
 
 breedSelectEl.addEventListener('change', changeCat);
 
@@ -34,44 +56,20 @@ function changeCat(event) {
 
   catInfoEl.innerHTML = '';
 
-  loaderEl.classList.replace('visually-hidden', 'loader');
-  catInfoEl.classList.add('visually-hidden');
-
   let breedId = event.currentTarget.value;
 
-  fetchCatByBreed(breedId).then(breeds => {
-    loaderEl.classList.replace('loader', 'visually-hidden');
-    breedSelectEl.classList.remove('visually-hidden');
-
-    const catImg = breeds
-      .map(({ url }) => {
-        return `<img src="${url}" class="cat-img" alt="cat" width=500/>`;
-      })
-      .join('');
-    catInfoEl.insertAdjacentHTML('afterbegin', catImg);
-  });
-
   if (!isFirstLoad) {
-    fetchBreeds().then(breeds => {
-      const infoCat = breeds
-        .map(breed => {
-          if (breed.id === breedId) {
-            const { description, temperament, name, origin } = breed;
+    loaderEl.classList.replace('visually-hidden', 'loader');
 
-            return `<div class="info-cat">
-                  <h1>${name}</h1>
-                  <p>${description}</p>
-                  <p><span class="temperament">Temperament: </span>${temperament}</p>
-                  <p><span class="country">Country: </span>${origin}</p>
-                </div>`;
-          }
-        })
-        .join('');
-
-      catInfoEl.insertAdjacentHTML('beforeend', infoCat);
-      catInfoEl.classList.remove('visually-hidden');
-    });
+    fetchCatByBreed(breedId)
+      .then(breeds => {
+        const catImg = createCatMarkup(breeds);
+        catInfoEl.insertAdjacentHTML('beforeend', catImg);
+      })
+      .catch(anErrorOccurred)
+      .finally(() => loaderEl.classList.add('visually-hidden'));
   }
+
   isFirstLoad = false;
 }
 
